@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jeklander</title>
+<style>
+:root{--bg:#eef1f6;--card:#fff;--ink:#1b2433;--mute:#6b7689;--line:#d9dfea;--acc:#3b4cca;--acc-ink:#fff;--done:#dfe4f7;--lock:#e6e9f0}
+:root[data-theme=dark]{--bg:#12151d;--card:#1b2030;--ink:#e8ecf5;--mute:#8e99ad;--line:#2b3347;--acc:#8f9cff;--acc-ink:#12151d;--done:#2a3157;--lock:#171b27}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#12151d;--card:#1b2030;--ink:#e8ecf5;--mute:#8e99ad;--line:#2b3347;--acc:#8f9cff;--acc-ink:#12151d;--done:#2a3157;--lock:#171b27}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font:700 1.7rem ui-serif,Georgia,serif;letter-spacing:-.02em;margin:0}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,input,textarea{font:inherit;color:inherit}
+button{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer}
+button.p{background:var(--acc);color:var(--acc-ink);border-color:var(--acc)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+input,textarea{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.stack{display:grid;gap:10px}
+.bar{height:10px;background:var(--lock);border-radius:99px;overflow:hidden;margin:10px 0}
+.bar i{display:block;height:100%;background:var(--acc)}
+.stats{display:flex;justify-content:space-between;color:var(--mute);font-size:.9rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px}
+.d{aspect-ratio:1;padding:0;font-size:.8rem;display:grid;place-items:center;position:relative}
+.d.f{background:var(--lock);color:var(--mute);cursor:not-allowed;border-style:dashed}
+.d.n{background:var(--done)}
+.d.n::after{content:"✕";position:absolute;color:var(--acc);font-size:1.5rem;font-weight:700;opacity:.8}
+.d.t{border:2px solid var(--acc);font-weight:700}
+.d.s{outline:3px solid var(--acc)}
+dialog{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:14px;width:min(92vw,520px);padding:16px}
+dialog::backdrop{background:#0008}
+textarea{min-height:180px;resize:vertical}
+.err{color:#d33;min-height:1.4em;font-size:.9rem}
+.mute{color:var(--mute);font-size:.9rem}
+.note{border-top:1px solid var(--line);padding:10px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.hide{display:none!important}
+</style>
+</head>
+<body><main>
+<header><h1>jeklander</h1><div class="row"><button id="theme" aria-label="Tema">◐</button><button id="out" class="hide">Çıkış</button></div></header>
+<div id="auth" class="card stack hide">
+  <input id="em" type="email" placeholder="E-posta" autocomplete="email">
+  <input id="pw" type="password" placeholder="Şifre (en az 8 karakter)" autocomplete="current-password" minlength="8">
+  <div class="row"><button class="p" id="login">Giriş yap</button><button id="reg">Kayıt ol</button></div>
+  <div id="aerr" class="err"></div>
+</div>
+<div id="setup" class="card stack hide">
+  <b>Yolculuğun ne zaman başlıyor?</b>
+  <input id="sd" type="date">
+  <p class="mute">365 gün bu tarihten itibaren sayılır. İlk not yazıldıktan sonra değiştirilemez.</p>
+  <button class="p" id="sdok">Takvimi oluştur</button>
+</div>
+<div id="app" class="hide">
+  <div class="card">
+    <div class="stats"><span id="s1"></span><span id="s2"></span></div>
+    <div class="bar"><i id="bar"></i></div>
+    <div class="row"><button id="shbtn">Paylaş</button><span class="mute" id="shhint"></span></div>
+  </div>
+  <div id="shpanel" class="card stack hide">
+    <div class="mute">Not yazılmış günlere dokunarak seç, sonra link oluştur.</div>
+    <div class="row"><button class="p" id="shmk">Link oluştur</button><button id="shall">Tüm notlu günleri seç</button></div>
+    <div id="shlist"></div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+<div id="shared" class="hide"><div class="card"><b>Paylaşılan notlar</b> <span class="mute">(salt okunur)</span><div id="shn"></div></div></div>
+<dialog id="dlg"><form method="dialog" class="stack">
+  <b id="dt"></b><textarea id="tx" maxlength="5000" placeholder="Bugün nasıl geçti?"></textarea>
+  <div id="derr" class="err"></div>
+  <div class="row"><button class="p" id="save" value="x">Kaydet</button><button value="c">Kapat</button></div>
+</form></dialog>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL='https://PROJE-ID.supabase.co', SUPABASE_ANON_KEY='ANON-PUBLIC-KEY';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const $=s=>document.querySelector(s), show=(s,v)=>$(s).classList.toggle('hide',!v);
+const add=(d,n)=>{const t=new Date(d+'T00:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
+const diff=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
+const fmt=d=>new Date(d+'T00:00:00Z').toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric',weekday:'long',timeZone:'UTC'});
+let cal,notes={},sel=new Set(),pick=false,open=null;
+const todayOf=tz=>new Date().toLocaleDateString('sv-SE',{timeZone:tz});
+// tema
+const th=localStorage.getItem('th'); if(th)document.documentElement.dataset.theme=th;
+$('#theme').onclick=()=>{const d=document.documentElement,dark=d.dataset.theme?d.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;d.dataset.theme=dark?'light':'dark';localStorage.setItem('th',d.dataset.theme)};
+// auth
+async function auth(kind){
+  const email=$('#em').value.trim(),password=$('#pw').value;$('#aerr').textContent='';
+  if(password.length<8){$('#aerr').textContent='Şifre en az 8 karakter olmalı.';return}
+  const {data,error}=kind==='reg'?await sb.auth.signUp({email,password}):await sb.auth.signInWithPassword({email,password});
+  if(error)$('#aerr').textContent=error.message;
+  else if(kind==='reg'&&!data.session)$('#aerr').textContent='Kayıt tamam. E-postana gelen onay linkine tıkla, sonra giriş yap.';
+}
+$('#login').onclick=()=>auth('in');$('#reg').onclick=()=>auth('reg');
+$('#out').onclick=()=>sb.auth.signOut();
+sb.auth.onAuthStateChange((_e,s)=>{if(!location.hash.startsWith('#/s/'))route(s)});
+async function route(session){
+  ['#auth','#setup','#app','#shared'].forEach(s=>show(s,false));show('#out',!!session);
+  if(!session){show('#auth',true);return}
+  const {data}=await sb.from('calendars').select('*').maybeSingle();
+  if(!data){$('#sd').value=todayOf(Intl.DateTimeFormat().resolvedOptions().timeZone);show('#setup',true);return}
+  cal=data;const r=await sb.from('notes').select('day,content');
+  notes={};(r.data||[]).forEach(n=>notes[n.day]=n.content);
+  show('#app',true);render();loadShares();
+}
+$('#sdok').onclick=async()=>{
+  const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const {error}=await sb.from('calendars').upsert({start_date:$('#sd').value,tz});
+  if(error)alert(error.message);else route((await sb.auth.getSession()).data.session);
+};
+// ızgara
+function render(){
+  const today=todayOf(cal.tz),g=$('#grid');g.innerHTML='';
+  const passed=Math.max(0,Math.min(365,diff(cal.start_date,today))),count=Object.keys(notes).length;
+  $('#s1').textContent=`${passed} / 365 gün atlatıldı`;$('#s2').textContent=`${count} not`;
+  $('#bar').style.width=(passed/365*100)+'%';
+  for(let i=0;i<365;i++){
+    const d=add(cal.start_date,i),b=document.createElement('button');
+    b.textContent=i+1;b.title=fmt(d);b.className='d';
+    if(d>today){b.classList.add('f');b.disabled=true}
+    if(d===today)b.classList.add('t');
+    if(notes[d]!==undefined)b.classList.add('n');
+    if(sel.has(d))b.classList.add('s');
+    b.onclick=()=>pick?toggle(d,b):edit(d,d===today);
+    g.appendChild(b);
+  }
+}
+function edit(d,editable){
+  if(!editable&&notes[d]===undefined)return;
+  open=d;$('#dt').textContent=fmt(d)+(editable?'':' (donmuş)');
+  const t=$('#tx');t.value=notes[d]||'';t.readOnly=!editable;show('#save',editable);$('#derr').textContent='';$('#dlg').showModal();
+}
+$('#save').onclick=async e=>{
+  e.preventDefault();const content=$('#tx').value.trim();
+  if(!content){$('#derr').textContent='Boş not kaydedilmez.';return}
+  const {error}=await sb.from('notes').upsert({day:open,content});
+  if(error){$('#derr').textContent='Kaydedilemedi: bu gün artık düzenlenemiyor olabilir.';return}
+  notes[open]=content;$('#dlg').close();render();
+};
+// paylaşım
+$('#shbtn').onclick=()=>{pick=!pick;sel.clear();show('#shpanel',pick);$('#shbtn').classList.toggle('p',pick);render()};
+function toggle(d,b){if(notes[d]===undefined)return;sel.has(d)?sel.delete(d):sel.add(d);b.classList.toggle('s')}
+$('#shall').onclick=()=>{Object.keys(notes).forEach(d=>sel.add(d));render()};
+$('#shmk').onclick=async()=>{
+  if(!sel.size){alert('Önce en az bir gün seç.');return}
+  const {error}=await sb.from('shares').insert({days:[...sel]});
+  if(error)alert(error.message);else{sel.clear();render();loadShares()}
+};
+async function loadShares(){
+  const {data}=await sb.from('shares').select('token,days,revoked,created_at').order('created_at',{ascending:false});
+  const box=$('#shlist');box.innerHTML='';
+  (data||[]).forEach(s=>{
+    const url=location.origin+location.pathname+'#/s/'+s.token,r=document.createElement('div');r.className='note row';
+    const t=document.createElement('span');t.textContent=`${s.days.length} gün · ${s.revoked?'kapalı':'açık'}`;t.style.flex='1';r.appendChild(t);
+    if(!s.revoked){
+      const c=document.createElement('button');c.textContent='Linki kopyala';
+      c.onclick=async()=>{await navigator.clipboard.writeText(url);c.textContent='Kopyalandı'};
+      const k=document.createElement('button');k.textContent='Kapat';
+      k.onclick=async()=>{if(confirm('Bu link kalıcı olarak kapansın mı?')){await sb.from('shares').update({revoked:true}).eq('token',s.token);loadShares()}};
+      r.append(c,k);
+    }
+    box.appendChild(r);
+  });
+}
+// paylaşılan görünüm (anonim, salt okunur)
+async function sharedView(tok){
+  ['#auth','#setup','#app'].forEach(s=>show(s,false));show('#shared',true);
+  const {data}=await sb.rpc('get_shared',{p_token:tok}),box=$('#shn');
+  if(!data){box.textContent='Bu link geçersiz ya da kapatılmış.';return}
+  data.notes.forEach(n=>{const d=document.createElement('div');d.className='note';
+    const b=document.createElement('b');b.textContent=fmt(n.day);const p=document.createElement('div');p.textContent=n.content;d.append(b,p);box.appendChild(d)});
+  if(!data.notes.length)box.textContent='Paylaşılan not yok.';
+}
+const m=location.hash.match(/^#\/s\/([a-f0-9]+)$/);
+if(m)sharedView(m[1]);else sb.auth.getSession().then(({data})=>route(data.session));
+</script>
+</body></html>
